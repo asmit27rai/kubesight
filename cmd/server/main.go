@@ -14,7 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	
+
 	"github.com/asmit27rai/kubesight/internal/api"
 	"github.com/asmit27rai/kubesight/internal/config"
 	"github.com/asmit27rai/kubesight/internal/engine"
@@ -31,21 +31,21 @@ func main() {
 	}
 
 	engineConfig := engine.QueryEngineConfig{
-		HLLPrecision:   uint8(cfg.Storage.HLLPrecision),
-		CMSWidth:       uint32(cfg.Storage.CMSWidth),
-		CMSDepth:       uint32(cfg.Storage.CMSDepth),
-		BloomSize:      uint32(cfg.Storage.BloomSize),
-		BloomHashes:    uint32(cfg.Storage.BloomHashes),
+		HLLPrecision: uint8(cfg.Storage.HLLPrecision),
+		CMSWidth:     uint32(cfg.Storage.CMSWidth),
+		CMSDepth:     uint32(cfg.Storage.CMSDepth),
+		BloomSize:    uint32(cfg.Storage.BloomSize),
+		BloomHashes:  uint32(cfg.Storage.BloomHashes),
 		SamplingConfig: sampling.SamplingConfig{
-			BaseRate:       cfg.Sampling.DefaultRate,
-			AnomalyRate:    cfg.Sampling.IncidentRate,
-			WindowSize:     time.Duration(cfg.Sampling.WindowSizeMin) * time.Minute,
-			ReservoirSize:  cfg.Sampling.ReservoirSize,
+			BaseRate:      cfg.Sampling.DefaultRate,
+			AnomalyRate:   cfg.Sampling.IncidentRate,
+			WindowSize:    time.Duration(cfg.Sampling.WindowSizeMin) * time.Minute,
+			ReservoirSize: cfg.Sampling.ReservoirSize,
 		},
 	}
 
 	queryEngine := engine.NewQueryEngine(engineConfig)
-	log.Printf("✅ Query Engine initialized with HLL precision: %d, CMS: %dx%d", 
+	log.Printf("Query Engine initialized with HLL precision: %d, CMS: %dx%d",
 		cfg.Storage.HLLPrecision, cfg.Storage.CMSWidth, cfg.Storage.CMSDepth)
 
 	streamConfig := stream.ProcessorConfig{
@@ -103,7 +103,7 @@ func main() {
 		log.Printf("HTTP server starting on %s:%d", cfg.Server.Host, cfg.Server.Port)
 		log.Printf("Dashboard available at: http://%s:%d", cfg.Server.Host, cfg.Server.Port)
 		log.Printf("API available at: http://%s:%d/api/v1", cfg.Server.Host, cfg.Server.Port)
-		
+
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
@@ -147,11 +147,11 @@ func printStartupSummary(cfg *config.Config) {
 	log.Printf("Kafka Brokers: %v", cfg.Kafka.Brokers)
 	log.Printf("Default Sampling Rate: %.2f%%", cfg.Sampling.DefaultRate*100)
 	log.Printf("Anomaly Sampling Rate: %.2f%%", cfg.Sampling.IncidentRate*100)
-	log.Printf("HyperLogLog Precision: %d (±%.2f%% error)", 
-		cfg.Storage.HLLPrecision, 
+	log.Printf("HyperLogLog Precision: %d (±%.2f%% error)",
+		cfg.Storage.HLLPrecision,
 		1.04/math.Sqrt(math.Pow(2, float64(cfg.Storage.HLLPrecision)))*100)
 	log.Printf("Count-Min Sketch: %dx%d", cfg.Storage.CMSWidth, cfg.Storage.CMSDepth)
-	log.Printf("Bloom Filter: %d elements, %d hash functions", 
+	log.Printf("Bloom Filter: %d elements, %d hash functions",
 		cfg.Storage.BloomSize, cfg.Storage.BloomHashes)
 	log.Println(strings.Repeat("=", 60))
 	log.Println("Ready to process approximate queries!")

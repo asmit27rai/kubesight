@@ -15,22 +15,22 @@ import (
 )
 
 type QueryEngine struct {
-	hll        *probabilistic.HyperLogLog
-	cms        *probabilistic.CountMinSketch
-	bloom      *probabilistic.BloomFilter
-	sampler    *sampling.AdaptiveSampler
-	samples    map[string][]*metrics.MetricPoint
-	mutex      sync.RWMutex
-	stats      QueryEngineStats
+	hll     *probabilistic.HyperLogLog
+	cms     *probabilistic.CountMinSketch
+	bloom   *probabilistic.BloomFilter
+	sampler *sampling.AdaptiveSampler
+	samples map[string][]*metrics.MetricPoint
+	mutex   sync.RWMutex
+	stats   QueryEngineStats
 }
 
 type QueryEngineStats struct {
-	TotalQueries    uint64        `json:"total_queries"`
-	ApproxQueries   uint64        `json:"approx_queries"`
-	AvgLatency      time.Duration `json:"avg_latency"`
-	TotalSamples    uint64        `json:"total_samples"`
-	ErrorRate       float64       `json:"error_rate"`
-	LastUpdateTime  time.Time     `json:"last_update"`
+	TotalQueries   uint64        `json:"total_queries"`
+	ApproxQueries  uint64        `json:"approx_queries"`
+	AvgLatency     time.Duration `json:"avg_latency"`
+	TotalSamples   uint64        `json:"total_samples"`
+	ErrorRate      float64       `json:"error_rate"`
+	LastUpdateTime time.Time     `json:"last_update"`
 }
 
 func NewQueryEngine(config QueryEngineConfig) *QueryEngine {
@@ -45,12 +45,12 @@ func NewQueryEngine(config QueryEngineConfig) *QueryEngine {
 }
 
 type QueryEngineConfig struct {
-	HLLPrecision   uint8                      `json:"hll_precision"`
-	CMSWidth       uint32                     `json:"cms_width"`
-	CMSDepth       uint32                     `json:"cms_depth"`
-	BloomSize      uint32                     `json:"bloom_size"`
-	BloomHashes    uint32                     `json:"bloom_hashes"`
-	SamplingConfig sampling.SamplingConfig    `json:"sampling_config"`
+	HLLPrecision   uint8                   `json:"hll_precision"`
+	CMSWidth       uint32                  `json:"cms_width"`
+	CMSDepth       uint32                  `json:"cms_depth"`
+	BloomSize      uint32                  `json:"bloom_size"`
+	BloomHashes    uint32                  `json:"bloom_hashes"`
+	SamplingConfig sampling.SamplingConfig `json:"sampling_config"`
 }
 
 func (qe *QueryEngine) ProcessMetric(metric *metrics.MetricPoint) {
@@ -59,10 +59,10 @@ func (qe *QueryEngine) ProcessMetric(metric *metrics.MetricPoint) {
 
 	if sampled, shouldSample := qe.sampler.Sample(metric); shouldSample && sampled != nil {
 		qe.updateDataStructures(sampled)
-		
+
 		key := qe.getMetricKey(sampled)
 		qe.samples[key] = append(qe.samples[key], sampled)
-		
+
 		if len(qe.samples[key]) > 1000 {
 			qe.samples[key] = qe.samples[key][len(qe.samples[key])-1000:]
 		}
@@ -73,7 +73,7 @@ func (qe *QueryEngine) ProcessMetric(metric *metrics.MetricPoint) {
 
 func (qe *QueryEngine) ExecuteQuery(request *metrics.QueryRequest) (*metrics.QueryResult, error) {
 	startTime := time.Now()
-	
+
 	qe.mutex.Lock()
 	qe.stats.TotalQueries++
 	qe.mutex.Unlock()
@@ -84,7 +84,7 @@ func (qe *QueryEngine) ExecuteQuery(request *metrics.QueryRequest) (*metrics.Que
 	}
 
 	processingTime := time.Since(startTime)
-	
+
 	qe.mutex.Lock()
 	qe.stats.AvgLatency = time.Duration((int64(qe.stats.AvgLatency)*int64(qe.stats.TotalQueries-1) + int64(processingTime)) / int64(qe.stats.TotalQueries))
 	if result.IsApproximate {
@@ -143,7 +143,7 @@ func (qe *QueryEngine) executeCountDistinct(request *metrics.QueryRequest) (*met
 
 func (qe *QueryEngine) executeSum(request *metrics.QueryRequest) (*metrics.QueryResult, error) {
 	samples := qe.getFilteredSamples(request)
-	
+
 	if len(samples) == 0 {
 		return &metrics.QueryResult{
 			ID:            request.ID,
@@ -165,7 +165,7 @@ func (qe *QueryEngine) executeSum(request *metrics.QueryRequest) (*metrics.Query
 	sampleVariance := qe.calculateVariance(samples)
 	n := float64(len(samples))
 	standardError := math.Sqrt(sampleVariance/n) / samplingRate
-	
+
 	errorBound := 1.96 * standardError
 	confidence := 0.95
 
@@ -182,7 +182,7 @@ func (qe *QueryEngine) executeSum(request *metrics.QueryRequest) (*metrics.Query
 
 func (qe *QueryEngine) executeAverage(request *metrics.QueryRequest) (*metrics.QueryResult, error) {
 	samples := qe.getFilteredSamples(request)
-	
+
 	if len(samples) == 0 {
 		return &metrics.QueryResult{
 			ID:            request.ID,
@@ -197,9 +197,9 @@ func (qe *QueryEngine) executeAverage(request *metrics.QueryRequest) (*metrics.Q
 	for _, sample := range samples {
 		sum += sample.Value
 	}
-	
+
 	average := sum / float64(len(samples))
-	
+
 	variance := qe.calculateVariance(samples)
 	standardError := math.Sqrt(variance / float64(len(samples)))
 	confidence := 0.95
@@ -217,7 +217,7 @@ func (qe *QueryEngine) executeAverage(request *metrics.QueryRequest) (*metrics.Q
 
 func (qe *QueryEngine) executePercentile(request *metrics.QueryRequest) (*metrics.QueryResult, error) {
 	samples := qe.getFilteredSamples(request)
-	
+
 	if len(samples) == 0 {
 		return &metrics.QueryResult{
 			ID:            request.ID,
@@ -242,7 +242,7 @@ func (qe *QueryEngine) executePercentile(request *metrics.QueryRequest) (*metric
 	index := (percentileValue / 100.0) * float64(len(values)-1)
 	lowerIndex := int(math.Floor(index))
 	upperIndex := int(math.Ceil(index))
-	
+
 	var percentileResult float64
 	if lowerIndex == upperIndex {
 		percentileResult = values[lowerIndex]
@@ -276,7 +276,7 @@ func (qe *QueryEngine) executeTopK(request *metrics.QueryRequest) (*metrics.Quer
 	}
 
 	heavyHitters := qe.cms.TopK(k)
-	
+
 	items := make([]metrics.TopKItem, len(heavyHitters))
 	for i, hh := range heavyHitters {
 		items[i] = metrics.TopKItem{
@@ -346,7 +346,6 @@ func (qe *QueryEngine) executeFrequencyCount(request *metrics.QueryRequest) (*me
 	}, nil
 }
 
-
 func (qe *QueryEngine) updateDataStructures(metric *metrics.MetricPoint) {
 	key := qe.getMetricKey(metric)
 	qe.hll.Add([]byte(key))
@@ -357,7 +356,7 @@ func (qe *QueryEngine) updateDataStructures(metric *metrics.MetricPoint) {
 }
 
 func (qe *QueryEngine) getMetricKey(metric *metrics.MetricPoint) string {
-	return fmt.Sprintf("%s/%s/%s/%s", 
+	return fmt.Sprintf("%s/%s/%s/%s",
 		metric.ClusterID, metric.Namespace, metric.PodName, metric.MetricName)
 }
 
@@ -439,7 +438,6 @@ func (qe *QueryEngine) calculateVariance(samples []*metrics.MetricPoint) float64
 
 	return sumSquares / float64(len(samples)-1)
 }
-
 
 func (qe *QueryEngine) extractPercentileValue(query string) float64 {
 	if strings.Contains(query, "PERCENTILE") {

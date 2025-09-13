@@ -1,10 +1,10 @@
 package probabilistic
 
 import (
+	"fmt"
 	"hash/fnv"
 	"math"
 	"sync"
-	"fmt"
 )
 
 type HyperLogLog struct {
@@ -36,9 +36,9 @@ func (hll *HyperLogLog) Add(data []byte) {
 	defer hll.mutex.Unlock()
 
 	hash := hashBytes(data)
-	
+
 	bucketIdx := hash >> (64 - hll.precision)
-	
+
 	w := hash << hll.precision
 	leadingZeros := uint8(1)
 	if w != 0 {
@@ -126,19 +126,19 @@ func (hll *HyperLogLog) GetStats() HLLStats {
 	}
 
 	return HLLStats{
-		Precision:     hll.precision,
-		Buckets:       hll.m,
-		EmptyBuckets:  uint32(emptyBuckets),
-		MaxBucket:     maxBucket,
+		Precision:      hll.precision,
+		Buckets:        hll.m,
+		EmptyBuckets:   uint32(emptyBuckets),
+		MaxBucket:      maxBucket,
 		EstimatedError: hll.EstimateError(),
 	}
 }
 
 type HLLStats struct {
-	Precision     uint8   `json:"precision"`
-	Buckets       uint32  `json:"buckets"`
-	EmptyBuckets  uint32  `json:"empty_buckets"`
-	MaxBucket     uint8   `json:"max_bucket"`
+	Precision      uint8   `json:"precision"`
+	Buckets        uint32  `json:"buckets"`
+	EmptyBuckets   uint32  `json:"empty_buckets"`
+	MaxBucket      uint8   `json:"max_bucket"`
 	EstimatedError float64 `json:"estimated_error"`
 }
 

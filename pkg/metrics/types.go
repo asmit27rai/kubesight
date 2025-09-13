@@ -6,61 +6,61 @@ import (
 )
 
 type MetricPoint struct {
-	Timestamp   time.Time         `json:"timestamp"`
-	ClusterID   string           `json:"cluster_id"`
-	Namespace   string           `json:"namespace"`
-	PodName     string           `json:"pod_name"`
-	ContainerName string         `json:"container_name"`
-	MetricName  string           `json:"metric_name"`
-	Value       float64          `json:"value"`
-	Unit        string           `json:"unit"`
-	Labels      map[string]string `json:"labels"`
+	Timestamp     time.Time         `json:"timestamp"`
+	ClusterID     string            `json:"cluster_id"`
+	Namespace     string            `json:"namespace"`
+	PodName       string            `json:"pod_name"`
+	ContainerName string            `json:"container_name"`
+	MetricName    string            `json:"metric_name"`
+	Value         float64           `json:"value"`
+	Unit          string            `json:"unit"`
+	Labels        map[string]string `json:"labels"`
 }
 
 type LogEntry struct {
-	Timestamp   time.Time         `json:"timestamp"`
-	ClusterID   string           `json:"cluster_id"`
-	Namespace   string           `json:"namespace"`
-	PodName     string           `json:"pod_name"`
-	ContainerName string         `json:"container_name"`
-	Level       string           `json:"level"`
-	Message     string           `json:"message"`
-	Labels      map[string]string `json:"labels"`
+	Timestamp     time.Time         `json:"timestamp"`
+	ClusterID     string            `json:"cluster_id"`
+	Namespace     string            `json:"namespace"`
+	PodName       string            `json:"pod_name"`
+	ContainerName string            `json:"container_name"`
+	Level         string            `json:"level"`
+	Message       string            `json:"message"`
+	Labels        map[string]string `json:"labels"`
 }
 
 type KubernetesEvent struct {
-	Timestamp   time.Time         `json:"timestamp"`
-	ClusterID   string           `json:"cluster_id"`
-	Namespace   string           `json:"namespace"`
-	Kind        string           `json:"kind"`
-	Name        string           `json:"name"`
-	Reason      string           `json:"reason"`
-	Type        string           `json:"type"`
-	Message     string           `json:"message"`
-	Count       int32            `json:"count"`
-	Labels      map[string]string `json:"labels"`
+	Timestamp time.Time         `json:"timestamp"`
+	ClusterID string            `json:"cluster_id"`
+	Namespace string            `json:"namespace"`
+	Kind      string            `json:"kind"`
+	Name      string            `json:"name"`
+	Reason    string            `json:"reason"`
+	Type      string            `json:"type"`
+	Message   string            `json:"message"`
+	Count     int32             `json:"count"`
+	Labels    map[string]string `json:"labels"`
 }
 
 type QueryRequest struct {
-	ID          string            `json:"id"`
-	Query       string           `json:"query"`
-	QueryType   QueryType        `json:"query_type"`
-	TimeRange   TimeRange        `json:"time_range"`
-	Filters     map[string]string `json:"filters"`
-	ErrorBound  float64          `json:"error_bound,omitempty"`
-	Confidence  float64          `json:"confidence,omitempty"`
+	ID         string            `json:"id"`
+	Query      string            `json:"query"`
+	QueryType  QueryType         `json:"query_type"`
+	TimeRange  TimeRange         `json:"time_range"`
+	Filters    map[string]string `json:"filters"`
+	ErrorBound float64           `json:"error_bound,omitempty"`
+	Confidence float64           `json:"confidence,omitempty"`
 }
 
 type QueryType string
 
 const (
-	CountDistinct     QueryType = "count_distinct"
-	Sum              QueryType = "sum" 
-	Average          QueryType = "average"
-	Percentile       QueryType = "percentile"
-	TopK             QueryType = "top_k"
-	Membership       QueryType = "membership"
-	FrequencyCount   QueryType = "frequency_count"
+	CountDistinct  QueryType = "count_distinct"
+	Sum            QueryType = "sum"
+	Average        QueryType = "average"
+	Percentile     QueryType = "percentile"
+	TopK           QueryType = "top_k"
+	Membership     QueryType = "membership"
+	FrequencyCount QueryType = "frequency_count"
 )
 
 type TimeRange struct {
@@ -69,15 +69,15 @@ type TimeRange struct {
 }
 
 type QueryResult struct {
-	ID          string      `json:"id"`
-	Query       string      `json:"query"`
-	Result      interface{} `json:"result"`
-	Error       *float64    `json:"error,omitempty"`
-	Confidence  *float64    `json:"confidence,omitempty"`
-	SampleSize  int         `json:"sample_size"`
+	ID             string        `json:"id"`
+	Query          string        `json:"query"`
+	Result         interface{}   `json:"result"`
+	Error          *float64      `json:"error,omitempty"`
+	Confidence     *float64      `json:"confidence,omitempty"`
+	SampleSize     int           `json:"sample_size"`
 	ProcessingTime time.Duration `json:"processing_time"`
-	IsApproximate bool       `json:"is_approximate"`
-	Timestamp   time.Time   `json:"timestamp"`
+	IsApproximate  bool          `json:"is_approximate"`
+	Timestamp      time.Time     `json:"timestamp"`
 }
 
 type ApproximateCountResult struct {
@@ -91,8 +91,8 @@ type TopKResult struct {
 }
 
 type TopKItem struct {
-	Key   string  `json:"key"`
-	Count uint64  `json:"count"`
+	Key       string  `json:"key"`
+	Count     uint64  `json:"count"`
 	Frequency float64 `json:"frequency"`
 }
 
@@ -108,14 +108,14 @@ type MembershipResult struct {
 }
 
 type SystemStats struct {
-	Timestamp        time.Time `json:"timestamp"`
-	TotalMetrics     uint64    `json:"total_metrics"`
-	SampledMetrics   uint64    `json:"sampled_metrics"`
-	SamplingRate     float64   `json:"sampling_rate"`
-	ProcessingRate   float64   `json:"processing_rate"` // metrics/second
-	MemoryUsage      uint64    `json:"memory_usage"`
-	QueryLatencyP95  float64   `json:"query_latency_p95"`
-	ErrorRate        float64   `json:"error_rate"`
+	Timestamp       time.Time `json:"timestamp"`
+	TotalMetrics    uint64    `json:"total_metrics"`
+	SampledMetrics  uint64    `json:"sampled_metrics"`
+	SamplingRate    float64   `json:"sampling_rate"`
+	ProcessingRate  float64   `json:"processing_rate"` // metrics/second
+	MemoryUsage     uint64    `json:"memory_usage"`
+	QueryLatencyP95 float64   `json:"query_latency_p95"`
+	ErrorRate       float64   `json:"error_rate"`
 }
 
 func (mp *MetricPoint) IsAnomaly() bool {

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KubeSight - Approximate Query Engine</title>
+    <link href="static/css/dashboard.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-cube spinning"></i> KubeSight</h1>
+                <p class="subtitle">Real-time Approximate Query Engine for Kubernetes Observability</p>
+                <div class="system-status">
+                    <span class="status-indicator pulse" id="systemStatus">
+                        <i class="fas fa-circle"></i> Connecting...
+                    </span>
+                    <span class="last-updated" id="lastUpdated">
+                        <i class="fas fa-sync-alt spinning"></i> Loading...
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <div class="activity-bar">
+            <div class="activity-item">
+                <i class="fas fa-stream"></i>
+                <span>Live Data: </span>
+                <span id="liveDataRate" class="data-counter">-- metrics/sec</span>
+            </div>
+            <div class="activity-item">
+                <i class="fas fa-database"></i>
+                <span>Processing: </span>
+                <span id="processingRate" class="data-counter">-- queries/sec</span>
+            </div>
+            <div class="activity-item">
+                <i class="fas fa-bolt"></i>
+                <span>Avg Latency: </span>
+                <span id="currentLatency" class="data-counter">--ms</span>
+            </div>
+            <div class="activity-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Accuracy: </span>
+                <span id="currentAccuracy" class="data-counter">--%</span>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div class="stats-grid">
+                <div class="stat-card" data-stat="queries">
+                    <div class="stat-icon animated"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-content">
+                        <h3>Total Queries</h3>
+                        <div class="stat-value loading" id="totalQueries">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                        <div class="stat-change" id="queriesChange">Calculating trend...</div>
+                    </div>
+                    <div class="update-indicator" id="queriesIndicator">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card" data-stat="response-time">
+                    <div class="stat-icon animated"><i class="fas fa-tachometer-alt"></i></div>
+                    <div class="stat-content">
+                        <h3>Avg Response Time</h3>
+                        <div class="stat-value loading" id="avgResponseTime">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                        <div class="stat-change improvement" id="responseTimeChange">Measuring performance...</div>
+                    </div>
+                    <div class="update-indicator" id="responseTimeIndicator">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card" data-stat="samples">
+                    <div class="stat-icon animated"><i class="fas fa-database"></i></div>
+                    <div class="stat-content">
+                        <h3>Samples Processed</h3>
+                        <div class="stat-value loading" id="samplesProcessed">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                        <div class="stat-change" id="samplesChange">Calculating rate...</div>
+                    </div>
+                    <div class="update-indicator" id="samplesIndicator">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                </div>
+
+                <div class="stat-card" data-stat="accuracy">
+                    <div class="stat-icon animated"><i class="fas fa-bullseye"></i></div>
+                    <div class="stat-content">
+                        <h3>Accuracy</h3>
+                        <div class="stat-value" id="accuracy">
+                            <span class="accuracy-meter">
+                                <span class="accuracy-fill" style="width: 94.8%"></span>
+                                <span class="accuracy-text">94.8%</span>
+                            </span>
+                        </div>
+                        <div class="stat-change" id="accuracyChange">±2.1% error bound</div>
+                    </div>
+                    <div class="update-indicator" id="accuracyIndicator">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-search pulse"></i> Live Query Interface</h2>
+                    <div class="query-actions">
+                        <button class="btn btn-primary" onclick="executeQuery()" id="executeBtn">
+                            <i class="fas fa-play"></i> Execute Query
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearQuery()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                        <div class="query-status" id="queryStatus">
+                            <i class="fas fa-circle status-ready"></i> Ready
+                        </div>
+                    </div>
+                </div>
+
+                <div class="query-builder">
+                    <div class="query-row">
+                        <label>Query Type:</label>
+                        <select id="queryType" onchange="updateQueryTemplate()" class="live-input">
+                            <option value="count_distinct">Count Distinct</option>
+                            <option value="percentile">Percentile</option>
+                            <option value="sum">Sum</option>
+                            <option value="average">Average</option>
+                            <option value="top_k">Top K</option>
+                            <option value="membership">Membership Test</option>
+                        </select>
+                    </div>
+
+                    <div class="query-row">
+                        <label>Metric:</label>
+                        <select id="metric" class="live-input">
+                            <option value="cpu_usage">CPU Usage</option>
+                            <option value="memory_usage">Memory Usage</option>
+                            <option value="pod_name">Pod Name</option>
+                            <option value="network_latency">Network Latency</option>
+                        </select>
+                    </div>
+
+                    <div class="query-row">
+                        <label>Filters:</label>
+                        <div class="filter-inputs">
+                            <input type="text" id="clusterFilter" placeholder="cluster_id" class="live-input">
+                            <input type="text" id="namespaceFilter" placeholder="namespace" class="live-input">
+                        </div>
+                    </div>
+
+                    <div class="query-preview">
+                        <label>Generated Query:</label>
+                        <div class="query-display live-query" id="queryPreview">
+                            <span class="query-text">COUNT_DISTINCT(cpu_usage)</span>
+                            <div class="query-complexity">
+                                <span class="complexity-badge">O(1) Space</span>
+                                <span class="speed-badge">~5ms Expected</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="query-results enhanced" id="queryResults" style="display: none;">
+                    <div class="results-header">
+                        <h3><i class="fas fa-chart-bar"></i> Query Results</h3>
+                        <div class="performance-badges">
+                            <span class="perf-badge speed" id="querySpeed">--ms</span>
+                            <span class="perf-badge accuracy" id="queryAccuracy">--%</span>
+                            <span class="perf-badge samples" id="querySamples">-- samples</span>
+                        </div>
+                    </div>
+                    <div class="result-content enhanced" id="resultContent">
+                        <div class="result-loading">
+                            <i class="fas fa-cog fa-spin"></i> Processing query...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <div class="chart-container live-chart">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-area pulse"></i> Real-time Query Performance</h3>
+                        <div class="chart-controls">
+                            <button class="btn-mini" onclick="refreshCharts()">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                            <span class="live-indicator">
+                                <i class="fas fa-circle live-dot"></i> LIVE
+                            </span>
+                        </div>
+                    </div>
+                    <canvas id="performanceChart"></canvas>
+                </div>
+
+                <div class="chart-container live-chart">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-pie"></i> Query Types Distribution</h3>
+                        <div class="chart-info">
+                            <span id="totalQueriesChart">0 queries processed</span>
+                        </div>
+                    </div>
+                    <canvas id="queryTypesChart"></canvas>
+                </div>
+            </div>
+
+            <div class="structures-section">
+                <h2><i class="fas fa-cubes"></i> Probabilistic Data Structures Status</h2>
+                <div class="structures-grid">
+                    <div class="structure-card hyperloglog">
+                        <div class="structure-header">
+                            <h4><i class="fas fa-hashtag"></i> HyperLogLog</h4>
+                            <div class="structure-status active">
+                                <i class="fas fa-circle"></i> Active
+                            </div>
+                        </div>
+                        <div class="structure-stats">
+                            <div class="stat-item">
+                                <span class="label">Precision:</span>
+                                <span class="value" id="hllPrecision">14 bits</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Estimated Error:</span>
+                                <span class="value" id="hllError">±1.6%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Memory Usage:</span>
+                                <span class="value" id="hllMemory">16 KB</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Cardinality:</span>
+                                <span class="value live-counter" id="hllCardinality">--</span>
+                            </div>
+                        </div>
+                        <div class="structure-activity">
+                            <div class="activity-graph" id="hllActivity"></div>
+                        </div>
+                    </div>
+
+                    <div class="structure-card countmin">
+                        <div class="structure-header">
+                            <h4><i class="fas fa-table"></i> Count-Min Sketch</h4>
+                            <div class="structure-status active">
+                                <i class="fas fa-circle"></i> Active
+                            </div>
+                        </div>
+                        <div class="structure-stats">
+                            <div class="stat-item">
+                                <span class="label">Dimensions:</span>
+                                <span class="value" id="cmsDimensions">2048 x 5</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Load Factor:</span>
+                                <span class="value live-counter" id="cmsLoad">23.4%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Memory Usage:</span>
+                                <span class="value" id="cmsMemory">41 KB</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Heavy Hitters:</span>
+                                <span class="value live-counter" id="cmsHeavyHitters">--</span>
+                            </div>
+                        </div>
+                        <div class="structure-activity">
+                            <div class="activity-graph" id="cmsActivity"></div>
+                        </div>
+                    </div>
+
+                    <div class="structure-card bloom">
+                        <div class="structure-header">
+                            <h4><i class="fas fa-filter"></i> Bloom Filter</h4>
+                            <div class="structure-status active">
+                                <i class="fas fa-circle"></i> Active
+                            </div>
+                        </div>
+                        <div class="structure-stats">
+                            <div class="stat-item">
+                                <span class="label">Size:</span>
+                                <span class="value" id="bloomSize">1M bits</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">False Positive Rate:</span>
+                                <span class="value live-counter" id="bloomFPR">0.1%</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Memory Usage:</span>
+                                <span class="value" id="bloomMemory">125 KB</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Elements:</span>
+                                <span class="value live-counter" id="bloomElements">--</span>
+                            </div>
+                        </div>
+                        <div class="structure-activity">
+                            <div class="activity-graph" id="bloomActivity"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2><i class="fas fa-play-circle"></i> Live Demo & Testing</h2>
+                <div class="demo-controls">
+                    <button class="btn btn-success" onclick="generateTestData()" id="generateBtn">
+                        <i class="fas fa-database"></i> Generate Test Data
+                    </button>
+                    <button class="btn btn-info" onclick="runBenchmark()" id="benchmarkBtn">
+                        <i class="fas fa-stopwatch"></i> Run Benchmark
+                    </button>
+                    <button class="btn btn-warning" onclick="runDemoQuery()" id="demoBtn">
+                        <i class="fas fa-magic"></i> Demo Query
+                    </button>
+                    <button class="btn btn-danger" onclick="generateBurst()" id="burstBtn">
+                        <i class="fas fa-rocket"></i> Data Burst
+                    </button>
+                </div>
+                <div class="demo-status-bar">
+                    <div class="demo-indicator" id="demoStatus">
+                        <i class="fas fa-circle status-ready"></i> Ready for demo
+                    </div>
+                    <div class="demo-metrics">
+                        <span>Operations: <span id="operationCount">0</span></span>
+                        <span>Success Rate: <span id="successRate">100%</span></span>
+                    </div>
+                </div>
+                <div class="demo-output enhanced" id="demoOutput">
+                    <div class="output-header">
+                        <i class="fas fa-terminal"></i> Live Output
+                        <button class="btn-mini" onclick="clearOutput()">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="output-content">
+                        <div class="welcome-message">
+                            <i class="fas fa-rocket"></i> Ready to demonstrate KubeSight's capabilities!
+                            <br>Click any demo button to see real-time processing...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 KubeSight - Real-time Approximate Query Engine</p>
+            <div class="footer-links">
+                <a href="/api/v1/health" class="footer-link">
+                    <i class="fas fa-heartbeat"></i> API Health
+                </a>
+                <a href="/api/v1/metrics" class="footer-link">
+                    <i class="fas fa-chart-bar"></i> Metrics
+                </a>
+                <a href="/api/v1/stats" class="footer-link">
+                    <i class="fas fa-chart-line"></i> Statistics
+                </a>
+            </div>
+        </footer>
+    </div>
+
+    <script src="static/js/dashboard.js"></script>
+    
+    <div class="connection-status" id="connectionStatus">
+        <i class="fas fa-wifi"></i>
+        <span>Connected to KubeSight</span>
+    </div>
+</body>
+</html>

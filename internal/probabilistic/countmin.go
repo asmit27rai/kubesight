@@ -9,13 +9,13 @@ import (
 )
 
 type CountMinSketch struct {
-	width   uint32
-	depth   uint32
-	count   [][]uint32
-	hashA   []uint32
-	hashB   []uint32
-	mutex   sync.RWMutex
-	total   uint64
+	width uint32
+	depth uint32
+	count [][]uint32
+	hashA []uint32
+	hashB []uint32
+	mutex sync.RWMutex
+	total uint64
 }
 
 func NewCountMinSketch(width, depth uint32) *CountMinSketch {
@@ -82,9 +82,9 @@ func (cms *CountMinSketch) HeavyHitters(threshold float64) []HeavyHitterItem {
 	defer cms.mutex.RUnlock()
 
 	minThreshold := uint32(threshold * float64(cms.total))
-	
+
 	candidates := make(map[uint32]uint32)
-	
+
 	for i := uint32(0); i < cms.width; i++ {
 		if cms.count[0][i] >= minThreshold {
 			candidates[i] = cms.count[0][i]
@@ -109,11 +109,11 @@ func (cms *CountMinSketch) HeavyHitters(threshold float64) []HeavyHitterItem {
 
 func (cms *CountMinSketch) TopK(k int) []HeavyHitterItem {
 	heavyHitters := cms.HeavyHitters(0.0)
-	
+
 	if len(heavyHitters) > k {
 		return heavyHitters[:k]
 	}
-	
+
 	return heavyHitters
 }
 
