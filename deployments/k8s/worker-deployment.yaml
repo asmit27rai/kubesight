@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubesight-worker
+  namespace: kubesight-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubesight-worker
+  template:
+    metadata:
+      labels:
+        app: kubesight-worker
+    spec:
+      containers:
+      - name: kubesight-worker
+        image: kubesight-worker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_BROKERS
+          value: "kafka:9092"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus-server:80"
+        - name: KUBESTATE_METRICS_URL
+          value: "http://kube-state-metrics:8080"

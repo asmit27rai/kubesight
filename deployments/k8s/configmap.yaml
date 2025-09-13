@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubesight-config
+  namespace: kubesight-system
+data:
+  config.yaml: |
+    server:
+      host: "0.0.0.0"
+      port: 8080
+    kafka:
+      brokers: ["kafka:9092"]
+      topics:
+        metrics: "k8s-metrics"
+        logs: "k8s-logs"
+        events: "k8s-events"
+    sampling:
+      default_rate: 0.05
+      incident_rate: 0.5
+      reservoir_size: 10000
+      window_size_min: 60
+      adaptive_enabled: true
+    storage:
+      hll_precision: 14
+      cms_width: 2048
+      cms_depth: 5
+      bloom_size: 1000000
+      bloom_hashes: 5

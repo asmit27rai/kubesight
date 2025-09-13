@@ -202,3 +202,11 @@ storage:
 ```bash
 make setup-grafana
 ```
+
+## Test With K8S 
+
+```bash
+make k8s-deploy
+```
+
+😊 Start exploring Kubernetes at scale with KubeSight today!

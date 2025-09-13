@@ -63,6 +63,12 @@ generate-query:
 	./scripts/generate_query.sh
 	@echo "Sample queries generated!"
 
+k8s-deploy:
+	@echo "Deploy K8S For Namespace-kubesight-system"
+	chmod +x ./deploy_k8s.sh
+	./deploy_k8s.sh
+	@echo "Run Make setup-grafana Command For Monitoring And localhost:8080 For UI Dashboard."
+
 logs:
 	@echo "Application logs:"
 	docker-compose logs -f kubesight

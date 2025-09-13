@@ -367,34 +367,6 @@ cat > /tmp/awesome_kubesight_dashboard.json << 'EOF'
       },
       {
         "id": 8,
-        "title": "COST SAVINGS CALCULATOR",
-        "type": "stat",
-        "targets": [
-          {
-            "expr": "95000",
-            "legendFormat": "Monthly Savings ($)",
-            "refId": "A"
-          }
-        ],
-        "options": {
-          "colorMode": "background",
-          "graphMode": "area",
-          "justifyMode": "center"
-        },
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "fixed",
-              "fixedColor": "green"
-            },
-            "unit": "currencyUSD",
-            "displayName": "Monthly Savings"
-          }
-        },
-        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 15}
-      },
-      {
-        "id": 9,
         "title": "SPEEDUP MULTIPLIER",
         "type": "stat",
         "targets": [
@@ -425,7 +397,7 @@ cat > /tmp/awesome_kubesight_dashboard.json << 'EOF'
         "gridPos": {"h": 8, "w": 8, "x": 16, "y": 15}
       },
       {
-        "id": 10,
+        "id": 9,
         "title": "LIVE DATA STREAM: Metrics Processed Over Time",
         "type": "timeseries",
         "targets": [
@@ -481,9 +453,9 @@ EOF
 
 curl -X POST http://admin:admin@localhost:3000/api/dashboards/db \
   -H "Content-Type: application/json" \
-  -d @/tmp/awesome_kubesight_dashboard.json > /dev/null 2>&1
+  -d @/tmp/dashboard.json > /dev/null 2>&1
 
-rm /tmp/awesome_kubesight_dashboard.json
+rm /tmp/dashboard.json
 
 echo "KubeSight dashboard created!"
 echo ""
