@@ -30,7 +30,7 @@ curl -X POST http://admin:admin@localhost:3000/api/datasources \
 echo "Prometheus data source added!"
 
 echo "Creating stunning KubeSight dashboard..."
-cat > /tmp/awesome_kubesight_dashboard.json << 'EOF'
+cat > /tmp/dashboard.json << 'EOF'
 {
   "dashboard": {
     "id": null,

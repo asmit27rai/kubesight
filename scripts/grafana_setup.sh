@@ -36,13 +36,15 @@ fi
 
 log_success "✅ All services are running!"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 log_info "Creating Grafana dashboard..."
-chmod +x grafana.sh
-./grafana.sh
+chmod +x "$SCRIPT_DIR/grafana.sh"
+"$SCRIPT_DIR/grafana.sh"
 
 log_info "Generating activity for demo..."
-chmod +x generate_query.sh
-./generate_query.sh
+chmod +x "$SCRIPT_DIR/generate_query.sh"
+"$SCRIPT_DIR/generate_query.sh"
 
 log_info "Verifying dashboard setup..."
 sleep 10
