@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Create Stunning KubeSight Grafana Dashboard
 echo "Creating KubeSight Dashboard"
 
 echo "Waiting for Grafana to be ready..."

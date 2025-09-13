@@ -2,7 +2,7 @@
 
 echo "Generating IMPRESSIVE activity for Grafana demo..."
 
-echo "💥 Generating 50,000 metrics burst..."
+echo "Generating 50,000 metrics burst..."
 curl -X POST http://localhost:8080/api/v1/demo/generate \
   -H "Content-Type: application/json" \
   -d '{"count": 50000, "cluster_id": "production-cluster", "namespace": "web-services"}' > /dev/null
@@ -11,7 +11,7 @@ sleep 5
 
 echo "⚡ Generating continuous query activity..."
 for round in {1..3}; do
-  echo "🎯 Round $round: Executing query batches..."
+  echo "Round $round: Executing query batches..."
   
   for i in {1..20}; do
     curl -s "http://localhost:8080/api/v1/demo/query?type=count_distinct" > /dev/null &

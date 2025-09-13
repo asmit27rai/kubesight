@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "COMPLETE GRAFANA DEMO SETUP"
+echo "COMPLETE GRAFANA SETUP"
 echo "=============================="
 echo ""
 
@@ -34,7 +34,7 @@ if ! curl -s http://localhost:3000/api/health > /dev/null; then
     exit 1
 fi
 
-log_success "✅ All services are running!"
+log_success "All services are running!"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
