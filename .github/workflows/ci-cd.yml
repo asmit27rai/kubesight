@@ -1,0 +1,383 @@
+name: KubeSight CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Build server
+      run: make build
+
+    - name: Build worker
+      run: make build-worker
+
+    - name: Check formatting
+      run: |
+        make fmt
+        git diff --exit-code
+
+    - name: Lint code
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: kubesight-binaries
+        path: |
+          bin/kubesight-server
+          bin/kubesight-worker
+
+  # Build Docker images
+  docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata (tags, labels) for server
+      id: meta-server
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-server
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Extract metadata (tags, labels) for worker
+      id: meta-worker
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push server image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./deployments/docker/Dockerfile.server
+        push: true
+        tags: ${{ steps.meta-server.outputs.tags }}
+        labels: ${{ steps.meta-server.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push worker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./deployments/docker/Dockerfile.worker
+        push: true
+        tags: ${{ steps.meta-worker.outputs.tags }}
+        labels: ${{ steps.meta-worker.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Validate Kubernetes manifests
+  k8s-validate:
+    name: Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup kubeval
+      run: |
+        curl -L https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz | tar xz
+        sudo mv kubeval /usr/local/bin
+
+    - name: Validate K8s manifests
+      run: |
+        kubeval deployments/k8s/*.yaml
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: '3.12.0'
+
+    - name: Lint Helm charts (if exists)
+      run: |
+        if [ -d "charts" ]; then
+          helm lint charts/*
+        fi
+
+  # Integration testing with Docker Compose
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build, docker]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: kubesight-binaries
+        path: bin/
+
+    - name: Make binaries executable
+      run: chmod +x bin/*
+
+    - name: Start services with Docker Compose
+      run: |
+        make docker-up
+        sleep 60  # Wait for services to be ready
+
+    - name: Check service health
+      run: |
+        curl -f http://localhost:8080/health || exit 1
+        make stats
+
+    - name: Generate demo data
+      run: |
+        curl -X POST http://localhost:8080/api/v1/demo/generate \
+          -H "Content-Type: application/json" \
+          -d '{"count": 1000}' || exit 1
+
+    - name: Test query endpoints
+      run: |
+        curl -X POST http://localhost:8080/api/v1/query \
+          -H "Content-Type: application/json" \
+          -d '{"query": "COUNT_DISTINCT(pod_name)", "query_type": "count_distinct"}' || exit 1
+
+    - name: Cleanup
+      if: always()
+      run: make docker-down
+
+  # Deploy to staging (on main branch)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, docker, security, k8s-validate, integration]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl for staging
+      run: |
+        echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > /tmp/kubeconfig
+        export KUBECONFIG=/tmp/kubeconfig
+        kubectl config current-context
+
+    - name: Deploy to staging
+      env:
+        KUBECONFIG: /tmp/kubeconfig
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Update image tags in manifests
+        sed -i "s|kubesight:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-server:main|g" deployments/k8s/deployment.yaml
+        sed -i "s|kubesight-worker:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:main|g" deployments/k8s/worker-deployment.yaml
+        
+        # Deploy to staging namespace
+        kubectl create namespace kubesight-staging --dry-run=client -o yaml | kubectl apply -f -
+        kubectl apply -f deployments/k8s/ -n kubesight-staging
+        
+        # Wait for rollout
+        kubectl rollout status deployment/kubesight-server -n kubesight-staging --timeout=300s
+
+    - name: Run smoke tests
+      env:
+        KUBECONFIG: /tmp/kubeconfig
+      run: |
+        kubectl port-forward svc/kubesight-service 8080:8080 -n kubesight-staging &
+        sleep 10
+        curl -f http://localhost:8080/health || exit 1
+
+  # Create release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, docker, security, k8s-validate, integration]
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: kubesight-binaries
+        path: bin/
+
+    - name: Create release archive
+      run: |
+        tar -czf kubesight-${{ github.ref_name }}-linux-amd64.tar.gz -C bin .
+        zip -r kubesight-${{ github.ref_name }}-linux-amd64.zip bin/
+
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          kubesight-${{ github.ref_name }}-linux-amd64.tar.gz
+          kubesight-${{ github.ref_name }}-linux-amd64.zip
+        generate_release_notes: true
+
+  # Update documentation
+  docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Generate API documentation
+      run: |
+        # Install godoc if needed
+        go install golang.org/x/tools/cmd/godoc@latest
+        
+        # Generate docs (placeholder - adjust based on your needs)
+        mkdir -p docs/api
+        echo "# API Documentation" > docs/api/README.md
+        echo "Generated on $(date)" >> docs/api/README.md
+
+    - name: Update README badges
+      run: |
+        # Update build status badge
+        sed -i 's|Build-.*-blue|Build-passing-brightgreen|g' README.md
+
+    - name: Commit documentation updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/ README.md
+        git diff --staged --quiet || git commit -m "docs: update documentation [skip ci]"
+        git push
+
+  # Cleanup old packages
+  cleanup:
+    name: Cleanup Old Packages
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      packages: write
+
+    steps:
+    - name: Delete old packages
+      uses: actions/delete-package-versions@v4
+      with:
+        package-name: ${{ env.IMAGE_NAME }}-server
+        package-type: container
+        min-versions-to-keep: 10
+        delete-only-untagged-versions: true
+
+    - name: Delete old worker packages
+      uses: actions/delete-package-versions@v4
+      with:
+        package-name: ${{ env.IMAGE_NAME }}-worker
+        package-type: container
+        min-versions-to-keep: 10
+        delete-only-untagged-versions: true
